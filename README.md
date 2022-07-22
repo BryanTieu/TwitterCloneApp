@@ -34,8 +34,7 @@ npm run format
 
 ### Build the app for production
 ```bash
-quasar build (if this doesn't work try below)
-quasar dev
+quasar build
 ```
 
 ### Customize the configuration
