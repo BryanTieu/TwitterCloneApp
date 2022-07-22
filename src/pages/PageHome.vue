@@ -1,0 +1,217 @@
+<template>
+<!--<div class = "q-ma-md"> -->
+  <q-page class= "relative-position">
+    <q-scroll-area class="absolute full-height full-width">
+      <div class="q-py-lg q-px-md row items-end q-col-gutter-md">
+        <div class="col">
+          <q-input
+            class="new-qweet"
+            autogrow  
+            bottom-slots 
+            v-model="newQweetContent" 
+            placeholder="What's Happening?" 
+            counter 
+            maxlength="280" 
+          >
+          <template v-slot:before>
+            <q-avatar size="xl">
+              <img src="https://cdn.quasar.dev/img/avatar5.jpg">
+            </q-avatar>
+          </template>
+
+        </q-input>
+        </div>
+
+      <div class="col col-shrink">
+          <q-btn
+            @click="addNewQweet"
+            class="q-mb-md" 
+            :disable = "!newQweetContent"
+            no-caps
+            unelevated 
+            rounded 
+            color="primary" 
+            label="Qweet" />
+      </div>
+    
+      </div>
+
+      <q-separator 
+        class="divider"
+        size="10px" 
+        color="grey-2" 
+        />
+
+    <q-list separator class="q-py-md">
+      <transition-group
+        appear
+        enter-active-class="animated fadeIn slower"
+        leave-active-class="animated fadeOut slow"
+      > 
+        <q-item
+          v-for="qweet in qweets" 
+          :key="qweet.id"
+          class="q-py-md"
+        >
+
+          <q-item-section avatar top>
+            <q-avatar size="xl">
+              <img src="https://cdn.quasar.dev/img/avatar5.jpg">
+            </q-avatar>
+          </q-item-section>
+
+          <q-item-section>
+            <q-item-label class="text-subtitle1">
+              <strong>Lauren Conwell</strong>
+              <span class="text-grey-7">
+                @Lauren_Conwell
+                <br class="lt-md">&bull; {{getFormattedDate(qweet.date)}}
+              </span>
+            </q-item-label>
+            <q-item-label class="qweet-content text-body1">
+              {{qweet.content}}
+            </q-item-label>
+            <div class="qweet-icons row justify-between q-mt-sm">
+              <q-btn 
+                flat 
+                round 
+                color="grey" 
+                icon="far fa-comment" 
+                size="sm" />
+                <q-btn 
+                flat 
+                round 
+                color="grey" 
+                icon="fas fa-retweet" 
+                size="sm" />
+                <q-btn 
+                @click="toggledLiked(qweet)"
+                flat 
+                round 
+                size="sm"
+                :color="qweet.liked ? 'pink' : 'grey' " 
+                :icon="qweet.liked ? 'fas fa-heart' : 'far fa-heart' " 
+                />
+                <q-btn
+                @click="deleteQweet(qweet)" 
+                flat 
+                round 
+                color="grey" 
+                icon="fas fa-trash" 
+                size="sm" />
+            </div>
+
+          </q-item-section>
+        </q-item>
+      </transition-group>
+    </q-list>
+
+  </q-scroll-area>
+  </q-page>
+<!--</div>-->
+</template>
+
+<script>
+import { collection, query, where, onSnapshot, orderBy, limit, addDoc, doc, deleteDoc, updateDoc } from "firebase/firestore";
+
+import db from 'src/boot/firebase'
+import moment from 'moment';
+
+
+export default{
+  name: 'PageHome',
+  data() {
+    return {
+      newQweetContent: '',
+      qweets: [
+        // {
+        //   id:'ID1',
+        //   content: 'Ill be in your neighborhood today I hope we can get a burger or something later.',
+        //   date: 1658233538340,
+        //   liked: false
+        // },
+        // {
+        //   id:'ID2',
+        //   content: 'Ill be in your neighborhood today ',
+        //   date: 1658233599131,
+        //   liked: true
+        // },
+      ]
+    }
+  },
+  methods: {
+        getFormattedDate(date) {
+            return moment(date).startOf('seconds').fromNow();
+       
+        },
+        addNewQweet() {
+          //Add a new document with a generated id.
+          // Add a new document with a generated id.
+          const docRef = addDoc(collection(db, "qweets"), {
+            content: this.newQweetContent,
+            date: Date.now(),
+            liked: false
+          });
+          //console.log("Document written with ID: ", docRef.id);
+
+          //clear the Text box after clicking on Qweet
+          this.newQweetContent = ''
+        },
+        deleteQweet(qweet) {
+          deleteDoc(doc(db, "qweets", qweet.id));
+        },
+        toggledLiked(qweet) {
+          const washingtonRef = doc(db, "qweets", qweet.id);
+
+          // Set the "capital" field of the city 'DC'
+          updateDoc(washingtonRef, {
+            liked: !qweet.liked
+          });
+          //console.log('toggleLiked')
+          //console.log(qweet)
+        },
+  },
+  mounted() {
+    const q = query(collection(db, "qweets"), orderBy("date"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+
+        let qweetChange = change.doc.data()
+        qweetChange.id = change.doc.id
+
+        if (change.type === "added") {
+            //console.log("New Qweet: ", qweetChange);
+            this.qweets.unshift(qweetChange)
+        }
+        if (change.type === "modified") {
+            //console.log("Modified Qweet: ", qweetChange);
+            let index = this.qweets.findIndex(qweet=>qweet.id === qweetChange.id)
+            Object.assign(this.qweets[index], qweetChange)
+
+        }
+        if (change.type === "removed") {
+            //console.log("Removed Qweet: ", qweetChange);
+            let index = this.qweets.findIndex(qweet=>qweet.id === qweetChange.id)
+            this.qweets.splice(index, 1)
+        }
+      });
+    });
+  }
+}
+</script>
+
+<style lang="sass">
+.new-qweet
+  textarea
+    font-size: 19px
+    line-height: 1.4 !important
+.divider
+  border-top: 1px solid
+  border-bottom: 1px solid
+  border-color: $grey-4
+.qweet-content
+  white-space: pre-line
+.qweet-icons
+  margin-left: -5px
+
+</style>
